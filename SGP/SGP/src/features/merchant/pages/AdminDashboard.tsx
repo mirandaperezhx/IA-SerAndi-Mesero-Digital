@@ -72,9 +72,9 @@ export const AdminDashboard: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-cream flex flex-col">
+    <div className="min-h-screen bg-brand-950 text-cream flex flex-col">
       {/* Header */}
-      <header className="bg-neutral-900 border-b border-neutral-800 px-5 py-4 flex justify-between items-center shrink-0">
+      <header className="bg-brand-900/90 border-b border-brand-700/40 px-5 py-4 flex justify-between items-center shrink-0 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <img src="/logo.svg" alt="Ventum" className="h-8" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />
           <div>
@@ -91,7 +91,7 @@ export const AdminDashboard: React.FC = () => {
       </header>
 
       {/* Tabs */}
-      <nav className="bg-neutral-900/60 border-b border-neutral-800 px-3 flex gap-1 overflow-x-auto no-scrollbar shrink-0">
+      <nav className="bg-brand-900/60 border-b border-brand-700/30 px-3 flex gap-1 overflow-x-auto no-scrollbar shrink-0">
         {tabs.map(({ key, label, Icon }) => (
           <button
             key={key}
@@ -152,7 +152,7 @@ const MetricsTab: React.FC<{ orders: Order[]; onRefresh: () => void }> = ({ orde
     <div className="max-w-3xl mx-auto space-y-5">
       <div className="flex justify-between items-center">
         <h2 className="font-display text-xl font-bold">Métricas de hoy</h2>
-        <button onClick={onRefresh} className="p-2 bg-neutral-900 border border-neutral-800 rounded-xl text-brand-300 hover:text-cream cursor-pointer"><RefreshCw className="w-4 h-4" /></button>
+        <button onClick={onRefresh} className="p-2 bg-brand-900/60 border border-brand-700/40 rounded-xl text-brand-300 hover:text-cream cursor-pointer"><RefreshCw className="w-4 h-4" /></button>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -162,7 +162,7 @@ const MetricsTab: React.FC<{ orders: Order[]; onRefresh: () => void }> = ({ orde
       </div>
 
       {/* Top dishes */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5">
+      <div className="bg-brand-900/40 border border-brand-700/30 rounded-2xl p-5">
         <h3 className="text-sm font-bold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4 text-brand-400" /> Platos más vendidos</h3>
         {stats.topDishes.length === 0 ? (
           <p className="text-xs text-brand-300/60">Aún no hay ventas registradas hoy.</p>
@@ -174,7 +174,7 @@ const MetricsTab: React.FC<{ orders: Order[]; onRefresh: () => void }> = ({ orde
                   <span className="font-medium text-cream"><span className="text-brand-400 font-bold">{i + 1}.</span> {name}</span>
                   <span className="text-brand-300 font-bold">{qty} und</span>
                 </div>
-                <div className="h-2 rounded-full bg-neutral-950 overflow-hidden">
+                <div className="h-2 rounded-full bg-brand-950 overflow-hidden">
                   <div className="h-full bg-brand-500 rounded-full transition-all" style={{ width: `${(qty / maxDish) * 100}%` }} />
                 </div>
               </div>
@@ -184,7 +184,7 @@ const MetricsTab: React.FC<{ orders: Order[]; onRefresh: () => void }> = ({ orde
       </div>
 
       {/* Franjas horarias */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5">
+      <div className="bg-brand-900/40 border border-brand-700/30 rounded-2xl p-5">
         <h3 className="text-sm font-bold mb-1 flex items-center gap-2"><Clock className="w-4 h-4 text-brand-400" /> Consumo por franja horaria</h3>
         <p className="text-[10px] text-brand-300/60 mb-4">Almuerzo 11–16h · Refacción 16–19h · Cena 19–24h</p>
         <div className="grid grid-cols-3 gap-4">
@@ -208,7 +208,7 @@ const MetricsTab: React.FC<{ orders: Order[]; onRefresh: () => void }> = ({ orde
 };
 
 const StatCard: React.FC<{ Icon: typeof TrendingUp; label: string; value: string }> = ({ Icon, label, value }) => (
-  <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4">
+  <div className="bg-brand-900/40 border border-brand-700/30 rounded-2xl p-4">
     <Icon className="w-5 h-5 text-brand-400 mb-2" />
     <p className="text-[10px] text-brand-300/70 uppercase tracking-wider">{label}</p>
     <p className="text-lg font-black text-cream mt-0.5 leading-tight">{value}</p>
@@ -250,7 +250,7 @@ const InventoryTab: React.FC<{
           </button>
           <button
             onClick={() => { resetInventory(); onReload(); }}
-            className="flex items-center gap-1.5 bg-neutral-900 border border-neutral-800 text-brand-300 hover:text-cream text-xs font-semibold px-3 py-2 rounded-xl cursor-pointer"
+            className="flex items-center gap-1.5 bg-brand-900/60 border border-brand-700/40 text-brand-300 hover:text-cream text-xs font-semibold px-3 py-2 rounded-xl cursor-pointer"
             title="Reabastecer (demo)"
           >
             <RotateCcw className="w-4 h-4" /> Reabastecer
@@ -264,8 +264,8 @@ const InventoryTab: React.FC<{
         const open = openGroups.has(key);
         const groupLow = items.filter((i) => i.stock / i.capacity < 0.3).length;
         return (
-          <div key={key} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden">
-            <button onClick={() => toggle(key)} className="w-full flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-neutral-850/50">
+          <div key={key} className="bg-brand-900/40 border border-brand-700/30 rounded-2xl overflow-hidden">
+            <button onClick={() => toggle(key)} className="w-full flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-brand-800/20">
               <span className="flex items-center gap-2.5 font-bold text-sm">
                 <span className="text-lg">{emoji}</span> {label}
                 <span className="text-[10px] text-brand-300/60 font-normal">({items.length})</span>
@@ -274,7 +274,7 @@ const InventoryTab: React.FC<{
               <ChevronDown className={`w-4 h-4 text-brand-300 transition-transform ${open ? 'rotate-180' : ''}`} />
             </button>
             {open && (
-              <div className="px-4 pb-3 border-t border-neutral-800/60">
+              <div className="px-4 pb-3 border-t border-brand-700/30">
                 {items.map((ing) => <SupplyBar key={ing.id} ingredient={ing} />)}
               </div>
             )}
@@ -351,11 +351,11 @@ const QrTab: React.FC<{ slug: string }> = ({ slug }) => {
       <p className="text-xs text-brand-300/70">Imprime y coloca cada QR en su mesa. Al escanearlo, el cliente entra directo al menú de compra.</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
         {tables.map((t) => (
-          <div key={t.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-3 flex flex-col items-center">
+          <div key={t.id} className="bg-brand-900/40 border border-brand-700/30 rounded-2xl p-3 flex flex-col items-center">
             {qrs[t.id] ? (
               <img src={qrs[t.id]} alt={`QR ${t.name}`} className="w-full rounded-xl bg-cream" />
             ) : (
-              <div className="w-full aspect-square rounded-xl bg-neutral-850 animate-pulse" />
+              <div className="w-full aspect-square rounded-xl bg-brand-800/30 animate-pulse" />
             )}
             <p className="text-xs font-bold mt-2">{t.name}</p>
             <p className="text-[10px] text-brand-300/60 mb-2 break-all text-center">{tableQrTargetUrl(slug, t.id)}</p>
@@ -386,7 +386,7 @@ const SubscriptionTab: React.FC = () => {
       <p className="text-xs text-brand-300/70 mb-5">Modelo SaaS mensual por restaurante. Cancela cuando quieras.</p>
       <div className="grid md:grid-cols-3 gap-4">
         {plans.map((p) => (
-          <div key={p.name} className={`rounded-2xl p-5 border ${p.popular ? 'bg-gradient-to-b from-brand-700 to-brand-900 border-brand-400' : 'bg-neutral-900 border-neutral-800'}`}>
+          <div key={p.name} className={`rounded-2xl p-5 border ${p.popular ? 'bg-gradient-to-b from-brand-700 to-brand-900 border-brand-400' : 'bg-brand-900/40 border-brand-700/30'}`}>
             {p.popular && <span className="text-[10px] bg-accent-500 text-brand-950 font-black px-2 py-0.5 rounded-full">MÁS POPULAR</span>}
             <h3 className="font-display text-lg font-bold mt-2">{p.name}</h3>
             <p className="text-2xl font-black mt-1">{formatCOP(p.price)}<span className="text-xs font-normal text-brand-300">/mes</span></p>
