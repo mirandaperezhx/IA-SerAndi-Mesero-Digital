@@ -4,8 +4,9 @@ import { useApp } from '../../../context/AppContext';
 import useRealtimeOrders from '../../../hooks/useRealtimeOrders';
 import type { OrderStatus } from '../../../types';
 import sgpApi from '../../../lib/supabase';
-import { ChefHat, LogOut, Check, Flame, RefreshCw, Clock, Play } from 'lucide-react';
+import { ChefHat, LogOut, Check, Flame, RefreshCw, Clock, Play, AlertTriangle } from 'lucide-react';
 import notificationService from '../../../services/notifications';
+import { noteHasAllergyWarning } from '../../ai/dietEngine';
 
 export const KitchenDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -142,8 +143,8 @@ export const KitchenDashboard: React.FC = () => {
                         <span className="font-extrabold text-sky-400">{item.quantity}x</span>{' '}
                         <span className="text-slate-100 font-medium">{item.product_name}</span>
                         {item.notes && (
-                          <span className="block text-[10px] text-amber-500/90 italic font-medium mt-0.5 pl-1 border-l border-amber-500/25">
-                            * {item.notes}
+                          <span className={`block text-[10px] mt-0.5 pl-1 border-l ${noteHasAllergyWarning(item.notes) ? 'text-red-500 font-extrabold border-red-500 uppercase' : 'text-amber-500/90 italic font-medium border-amber-500/25'}`}>
+                            {noteHasAllergyWarning(item.notes) ? '⚠ ' : '* '}{item.notes}
                           </span>
                         )}
                       </div>
@@ -151,8 +152,12 @@ export const KitchenDashboard: React.FC = () => {
                   </div>
 
                   {order.notes && (
-                    <div className="mt-3 bg-neutral-900 p-2 rounded-xl text-[10px] text-slate-400 border border-neutral-800/50">
-                      <strong>Observación:</strong> "{order.notes}"
+                    <div className={`mt-3 p-2 rounded-xl text-[10px] border ${noteHasAllergyWarning(order.notes) ? 'bg-red-500/10 text-red-400 border-red-500/40 font-bold' : 'bg-neutral-900 text-slate-400 border-neutral-800/50'}`}>
+                      <strong className="inline-flex items-center gap-1">
+                        {noteHasAllergyWarning(order.notes) && <AlertTriangle className="w-3 h-3" />}
+                        {noteHasAllergyWarning(order.notes) ? '¡ALERGIA! ' : 'Observación: '}
+                      </strong>
+                      "{order.notes}"
                     </div>
                   )}
                 </div>
@@ -212,8 +217,8 @@ export const KitchenDashboard: React.FC = () => {
                         <span className="font-extrabold text-amber-400">{item.quantity}x</span>{' '}
                         <span className="text-slate-100 font-medium">{item.product_name}</span>
                         {item.notes && (
-                          <span className="block text-[10px] text-amber-500/90 italic font-medium mt-0.5 pl-1 border-l border-amber-500/25">
-                            * {item.notes}
+                          <span className={`block text-[10px] mt-0.5 pl-1 border-l ${noteHasAllergyWarning(item.notes) ? 'text-red-500 font-extrabold border-red-500 uppercase' : 'text-amber-500/90 italic font-medium border-amber-500/25'}`}>
+                            {noteHasAllergyWarning(item.notes) ? '⚠ ' : '* '}{item.notes}
                           </span>
                         )}
                       </div>
@@ -221,8 +226,12 @@ export const KitchenDashboard: React.FC = () => {
                   </div>
 
                   {order.notes && (
-                    <div className="mt-3 bg-neutral-900 p-2 rounded-xl text-[10px] text-slate-400 border border-neutral-800/50">
-                      <strong>Observación:</strong> "{order.notes}"
+                    <div className={`mt-3 p-2 rounded-xl text-[10px] border ${noteHasAllergyWarning(order.notes) ? 'bg-red-500/10 text-red-400 border-red-500/40 font-bold' : 'bg-neutral-900 text-slate-400 border-neutral-800/50'}`}>
+                      <strong className="inline-flex items-center gap-1">
+                        {noteHasAllergyWarning(order.notes) && <AlertTriangle className="w-3 h-3" />}
+                        {noteHasAllergyWarning(order.notes) ? '¡ALERGIA! ' : 'Observación: '}
+                      </strong>
+                      "{order.notes}"
                     </div>
                   )}
                 </div>

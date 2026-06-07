@@ -53,6 +53,36 @@ export const sgpApi = {
     return { data, error };
   },
 
+  // Validación de PIN de personal (centralizada). Mock: PIN de mockStore.
+  // Supabase: compara contra stores.pin_code (idealmente migrar a Supabase Auth).
+  async validateStaffPin(pin: string): Promise<boolean> {
+    if (isMockMode) {
+      return pin === mockDb.mockStore.pin_code;
+    }
+    const { data, error } = await supabase!
+      .from('stores')
+      .select('pin_code')
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return false;
+    return data.pin_code === pin;
+  },
+
+  // Sesiones activas/pagadas de la tienda (para el panel del mesero).
+  async getActiveStoreSessions(storeId: string): Promise<{ data: TableSession[] | null; error: any }> {
+    if (isMockMode) {
+      mockDb.runCleanupCycle();
+      const sessions = mockDb.getStoredSessions().filter((s) => s.store_id === storeId);
+      return { data: sessions, error: null };
+    }
+    const { data, error } = await supabase!
+      .from('table_sessions')
+      .select('*')
+      .eq('store_id', storeId)
+      .in('status', ['active', 'paid']);
+    return { data, error };
+  },
+
   async validateTablePasscode(tableId: string, passcode: string): Promise<boolean> {
     if (isMockMode) {
       return mockDb.validateTablePasscode(tableId, passcode);
@@ -339,6 +369,23 @@ export const sgpApi = {
       }))
     })) as Order[];
 
+    return { data: hydrated || null, error };
+  },
+
+  // Todos los pedidos de la tienda (para métricas del administrador).
+  async getAllStoreOrders(storeId: string): Promise<{ data: Order[] | null; error: any }> {
+    if (isMockMode) {
+      const orders = mockDb.getStoredOrders().filter((o) => o.store_id === storeId);
+      return { data: orders, error: null };
+    }
+    const { data, error } = await supabase!
+      .from('orders')
+      .select(`*, items:order_items(*, product:products(name))`)
+      .eq('store_id', storeId);
+    const hydrated = data?.map((o) => ({
+      ...o,
+      items: o.items?.map((item: any) => ({ ...item, product_name: item.product?.name })),
+    })) as Order[];
     return { data: hydrated || null, error };
   },
 

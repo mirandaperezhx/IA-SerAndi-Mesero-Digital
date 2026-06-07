@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../../context/AppContext';
 import useRealtimeOrders from '../../../hooks/useRealtimeOrders';
 import sgpApi from '../../../lib/supabase';
-import { mockTables, getStoredSessions } from '../../../services/mockData';
 import type { Table, TableSession } from '../../../types';
-import { Bell, LogOut, CheckCircle2, User, RefreshCw, DollarSign, X } from 'lucide-react';
+import { Bell, LogOut, CheckCircle2, User, RefreshCw, DollarSign, X, CreditCard, Smartphone, Banknote } from 'lucide-react';
 import notificationService from '../../../services/notifications';
+import { formatCOP } from '../../../utils/formatPrice';
 
 export const WaiterDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -17,6 +17,9 @@ export const WaiterDashboard: React.FC = () => {
   
   const [activeSessions, setActiveSessions] = useState<TableSession[]>([]);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
+  const [tables, setTables] = useState<Table[]>([]);
+  const [checkoutSession, setCheckoutSession] = useState<TableSession | null>(null);
+  const [paying, setPaying] = useState(false);
 
   // Authentication Lock
   useEffect(() => {
@@ -25,18 +28,26 @@ export const WaiterDashboard: React.FC = () => {
     }
   }, [staffRole, navigate]);
 
-  // Load and subscribe to active sessions
+  // Sesiones de la tienda vía API (funciona en mock y en Supabase real)
   const fetchSessions = async () => {
-    // In mock mode we read stored sessions. In production we query database table_sessions
-    const sessions = getStoredSessions();
-    setActiveSessions(sessions);
+    if (!store) return;
+    const { data } = await sgpApi.getActiveStoreSessions(store.id);
+    setActiveSessions(data ?? []);
   };
 
   useEffect(() => {
-    fetchSessions();
-    const interval = setInterval(fetchSessions, 5000); // Poll session statuses for simulation
-    return () => clearInterval(interval);
+    const loadTables = async () => {
+      const { data } = await sgpApi.getTables();
+      setTables(data ?? []);
+    };
+    loadTables();
   }, []);
+
+  useEffect(() => {
+    fetchSessions();
+    const interval = setInterval(fetchSessions, 5000);
+    return () => clearInterval(interval);
+  }, [store]);
 
   // Listen to live broadcast order notifications
   useEffect(() => {
@@ -133,15 +144,22 @@ export const WaiterDashboard: React.FC = () => {
     }
   };
 
-  const handleCheckoutTable = async (sessionId: string) => {
-    if (!window.confirm('¿Confirmar cobro de la cuenta y cerrar la sesión de esta mesa? Se iniciará el temporizador de 15 minutos.')) return;
+  const confirmPayment = async (method: string) => {
+    console.log(`[Ventum] Procesando pago vía ${method}`);
+    if (!checkoutSession) return;
+    setPaying(true);
     try {
-      await sgpApi.payAndCloseSession(sessionId);
+      // Simulación de pasarela de pago (Nequi / Wompi / Tarjeta / Efectivo)
+      await new Promise((r) => setTimeout(r, 900));
+      await sgpApi.payAndCloseSession(checkoutSession.id);
       notificationService.playChime('success');
+      setCheckoutSession(null);
       fetchSessions();
       refreshOrders();
     } catch (e) {
       console.error(e);
+    } finally {
+      setPaying(false);
     }
   };
 
@@ -192,7 +210,7 @@ export const WaiterDashboard: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {mockTables.map(table => {
+            {tables.map(table => {
               const state = getTableState(table.id);
               const isSelected = selectedTable?.id === table.id;
 
@@ -276,7 +294,7 @@ export const WaiterDashboard: React.FC = () => {
                               {order.items?.map((item, index) => (
                                 <div key={index} className="flex justify-between">
                                   <span>{item.quantity}x {item.product_name}</span>
-                                  <span className="text-slate-400">${(item.unit_price * item.quantity).toFixed(2)}</span>
+                                  <span className="text-slate-400">{formatCOP(item.unit_price * item.quantity)}</span>
                                 </div>
                               ))}
                             </div>
@@ -288,7 +306,7 @@ export const WaiterDashboard: React.FC = () => {
                                 className="mt-3 w-full py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-lg text-[10px] flex items-center justify-center gap-1 transition-all"
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
-                                Entregar a la Mesa
+                                Pasar a recoger y entregar
                               </button>
                             )}
                           </div>
@@ -310,12 +328,12 @@ export const WaiterDashboard: React.FC = () => {
                 <div className="border-t border-neutral-800 pt-6 mt-6 bg-neutral-900">
                   <div className="flex justify-between items-center mb-5">
                     <span className="text-xs font-semibold text-slate-400">Subtotal de la cuenta</span>
-                    <span className="text-lg font-black text-white">${totalAmountSelected.toFixed(2)}</span>
+                    <span className="text-lg font-black text-white">{formatCOP(totalAmountSelected)}</span>
                   </div>
 
                   {currentSession.status === 'active' ? (
                     <button
-                      onClick={() => handleCheckoutTable(currentSession.id)}
+                      onClick={() => setCheckoutSession(currentSession)}
                       disabled={selectedTableOrders.length === 0}
                       className={`w-full py-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all active:scale-97 ${
                         selectedTableOrders.length > 0
@@ -342,6 +360,42 @@ export const WaiterDashboard: React.FC = () => {
           )}
         </aside>
       </div>
+
+      {/* Modal de pasarela de pago (simulada) */}
+      {checkoutSession && (
+        <div
+          className="fixed inset-0 bg-brand-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => !paying && setCheckoutSession(null)}
+        >
+          <div className="bg-cream w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-pop-in" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="font-display text-lg font-bold text-brand-800">Cobrar cuenta</h3>
+              <button onClick={() => setCheckoutSession(null)} disabled={paying} className="text-brand-400 hover:text-brand-700 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-brand-500 mb-4">Elige el método de pago. Al cobrar se inicia el temporizador de 15 minutos.</p>
+            <div className="bg-brand-700 text-cream rounded-2xl p-4 mb-4 text-center">
+              <p className="text-[11px] text-brand-200">Total a cobrar</p>
+              <p className="text-2xl font-black">{formatCOP(totalAmountSelected)}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[{ k: 'Nequi', Icon: Smartphone }, { k: 'Wompi', Icon: CreditCard }, { k: 'Tarjeta', Icon: CreditCard }, { k: 'Efectivo', Icon: Banknote }].map(({ k, Icon }) => (
+                <button
+                  key={k}
+                  onClick={() => confirmPayment(k)}
+                  disabled={paying}
+                  className="flex flex-col items-center gap-1.5 bg-white border border-brand-200 hover:border-brand-500 rounded-2xl py-4 text-brand-700 font-semibold text-xs transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                >
+                  <Icon className="w-5 h-5" /> {k}
+                </button>
+              ))}
+            </div>
+            {paying && <p className="text-center text-xs text-brand-600 mt-4 animate-pulse">Procesando pago seguro...</p>}
+            <p className="text-[10px] text-brand-400 text-center mt-4">Pasarela simulada · integrable con Wompi / Mercado Pago (ver docs).</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

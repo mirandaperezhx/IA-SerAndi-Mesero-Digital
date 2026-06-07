@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 120" width="360" height="120" role="img" aria-label="Ventum">
+  <defs>
+    <linearGradient id="vg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6b0f1e"/>
+      <stop offset="1" stop-color="#a33a4a"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(20,18)">
+    <rect x="0" y="0" width="84" height="84" rx="20" fill="url(#vg)"/>
+    <text x="42" y="62" font-size="56" font-family="Georgia, 'Libre Baskerville', serif" fill="#f3ecec" text-anchor="middle" font-style="italic">V</text>
+  </g>
+  <text x="124" y="62" font-size="46" font-family="Georgia, 'Libre Baskerville', serif" fill="#6b0f1e" letter-spacing="2">Ventum</text>
+  <text x="126" y="88" font-size="13" font-family="Inter, system-ui, sans-serif" fill="#a33a4a" letter-spacing="6">COCINA &amp; IA</text>
+</svg>

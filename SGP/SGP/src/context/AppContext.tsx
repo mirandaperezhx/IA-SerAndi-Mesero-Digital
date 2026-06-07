@@ -11,6 +11,7 @@ interface AppContextType {
   staffRole: UserRole | null;
   loading: boolean;
   error: string | null;
+  lastAddedProduct: { product: Product; ts: number } | null;
   
   // Table operations
   enterTable: (tableId: string, passcode: string) => Promise<boolean>;
@@ -39,6 +40,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [staffRole, setStaffRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastAddedProduct, setLastAddedProduct] = useState<{ product: Product; ts: number } | null>(null);
 
   // Initialize and load state from localStorage
   useEffect(() => {
@@ -192,6 +194,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem(`sgp_cart_${activeSession.id}`, JSON.stringify(updated));
       return updated;
     });
+    // Dispara el carrusel de maridaje de Sheila
+    setLastAddedProduct({ product, ts: Date.now() });
   };
 
   const removeFromCart = (productId: string) => {
@@ -246,10 +250,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return order!;
   };
 
-  // Staff functions
+  // Staff functions — PIN único validado por el backend (mock: 2580)
   const loginStaff = async (pin: string, role: UserRole): Promise<boolean> => {
-    // Standard PIN checks (master pin is 2580 for demo, but we also check mockStore)
-    if (pin === '2580' || pin === '1234') {
+    const ok = await sgpApi.validateStaffPin(pin);
+    if (ok) {
       setStaffRole(role);
       localStorage.setItem('sgp_staff_role', role);
       return true;
@@ -265,20 +269,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider
       value={{
-        store: store || {
-          id: 'store-1-uuid',
-          name: 'El Rincón del Sabor',
-          slug: 'el-rincon-sabor',
-          logo_url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=150&q=80',
-          pin_code: '2580',
-          created_at: new Date().toISOString()
-        },
+        store: store || mockStore,
         activeTable,
         activeSession,
         cart,
         staffRole,
         loading,
         error,
+        lastAddedProduct,
         enterTable,
         exitTable,
         checkTableSessionStatus,
