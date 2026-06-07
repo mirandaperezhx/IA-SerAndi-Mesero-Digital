@@ -1,37 +1,68 @@
 @import "tailwindcss";
 
-/* Premium Custom Design Tokens for SGP MVP */
+/* ============================================================================
+   VENTUM — Design Tokens (Identidad de marca burdeos / fine-dining)
+   Paleta: #000000 / #3B0A12 / #6B0F1E / #A33A4A / #D7B1B8 / #F3ECEC
+   Tipografía display: Libre Baskerville
+   ============================================================================ */
 @theme {
-  --color-brand-50: #f3faf6;
-  --color-brand-100: #e7f5ed;
-  --color-brand-500: #10b981; /* Emerald-500 */
-  --color-brand-600: #059669; /* Emerald-600 */
-  --color-brand-700: #047857; /* Emerald-700 */
-  --color-brand-900: #064e3b; /* Emerald-900 */
-  
-  --color-accent-500: #f59e0b; /* Amber-500 */
-  --color-accent-600: #d97706; /* Amber-600 */
-  
-  --color-neutral-850: #181d2a;
-  --color-neutral-900: #0f172a;
-  --color-neutral-950: #030712;
+  /* Brand wine scale */
+  --color-brand-50: #f7eef0;
+  --color-brand-100: #f0d9dd;
+  --color-brand-200: #e3bcc3;
+  --color-brand-300: #d7b1b8;
+  --color-brand-400: #c07a87;
+  --color-brand-500: #a33a4a; /* CTA principal */
+  --color-brand-600: #8a2435;
+  --color-brand-700: #6b0f1e; /* Burdeos de marca */
+  --color-brand-800: #52101a;
+  --color-brand-900: #3b0a12; /* Vino oscuro */
+  --color-brand-950: #1a0509;
+
+  /* Soft brand pink (accents) */
+  --color-rose-brand: #d7b1b8;
+
+  /* Warm gold accent (detalles premium) */
+  --color-accent-400: #e0b25a;
+  --color-accent-500: #cf9b3c;
+  --color-accent-600: #b07f25;
+
+  /* Near-black wine neutrals para pantallas de staff */
+  --color-ink-700: #2a141a;
+  --color-ink-800: #1a0a0e;
+  --color-ink-850: #150709;
+  --color-ink-900: #0d0406;
+  --color-ink-950: #060203;
+
+  --color-cream: #f3ecec;
+
+  /* Neutros cálidos para pantallas de staff (cocina/mesero/admin) */
+  --color-neutral-750: #2a2024;
+  --color-neutral-800: #211a1c;
+  --color-neutral-850: #1a1416;
+  --color-neutral-900: #120d0f;
+  --color-neutral-950: #0a0608;
 }
 
 :root {
-  font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   color-scheme: light dark;
 }
 
+.font-display {
+  font-family: 'Libre Baskerville', 'Georgia', serif;
+}
+
 body {
-  background-color: #f8fafc;
-  color: #0f172a;
+  background-color: #f3ecec;
+  color: #1a0a0e;
   margin: 0;
   min-height: 100vh;
   -webkit-tap-highlight-color: transparent;
   overflow-x: hidden;
 }
 
-/* Custom scrollbar for premium touch */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -40,41 +71,49 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #c07a87;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #a33a4a;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-/* Tailwind v4 animation keyframe injections */
+/* Animations */
 @keyframes slideUp {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
-
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideInRight {
+  from { transform: translateX(120%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes popIn {
+  0% { transform: scale(0.8) translateY(10px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+@keyframes carouselIn {
+  from { transform: translateY(20px) scale(0.95); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
-.animate-slide-up {
-  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
+.animate-slide-up { animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-fade-in { animation: fadeIn 0.25s ease-out forwards; }
+.animate-slide-in-right { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-pop-in { animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-carousel-in { animation: carouselIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
-.animate-fade-in {
-  animation: fadeIn 0.25s ease-out forwards;
-}
-
-/* Hide standard styling for custom inputs */
+/* Hide spinners on number inputs */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;

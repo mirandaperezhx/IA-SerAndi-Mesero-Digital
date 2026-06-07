@@ -128,3 +128,88 @@ CREATE INDEX idx_order_items_order ON order_items(order_id);
 -- This guarantees maximum throughput, low DB CPU utilization, and robust security.
 -- Row Level Security (RLS) can still protect database reads/writes of actual tables.
 -- ============================================================================
+
+
+-- ============================================================================
+-- VENTUM — Extensiones: tiempos de cocina, inventario, push tokens
+-- ============================================================================
+
+-- 8. Sellos de tiempo para el pronóstico de espera (IA)
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS preparing_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS ready_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS eta_minutes INTEGER;
+
+-- 9. INGREDIENTES / MATERIA PRIMA (inventario por tienda)
+CREATE TABLE IF NOT EXISTS ingredients (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+    name VARCHAR(120) NOT NULL,
+    grp VARCHAR(20) NOT NULL,            -- frutas, verduras, legumbres, carnes, lacteos, bebidas, abarrotes
+    stock NUMERIC(12,2) NOT NULL DEFAULT 0,
+    capacity NUMERIC(12,2) NOT NULL DEFAULT 0,
+    unit VARCHAR(10) NOT NULL DEFAULT 'g',
+    allergens TEXT[] DEFAULT '{}'::TEXT[],
+    animal BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ingredients_store ON ingredients(store_id);
+
+-- 10. RECETAS (consumo de materia prima por producto)
+CREATE TABLE IF NOT EXISTS product_recipes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    ingredient_id UUID NOT NULL REFERENCES ingredients(id) ON DELETE CASCADE,
+    qty NUMERIC(12,2) NOT NULL CHECK (qty > 0)
+);
+CREATE INDEX IF NOT EXISTS idx_recipes_product ON product_recipes(product_id);
+
+-- 11. PUSH TOKENS (notificaciones FCM)
+CREATE TABLE IF NOT EXISTS push_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+    role VARCHAR(20) NOT NULL,
+    token TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL,
+    UNIQUE (store_id, token)
+);
+
+-- RPC atómica para mermar inventario (evita condiciones de carrera).
+CREATE OR REPLACE FUNCTION decrement_ingredient(p_id UUID, p_qty NUMERIC)
+RETURNS void LANGUAGE sql AS $$
+  UPDATE ingredients SET stock = GREATEST(0, stock - p_qty) WHERE id = p_id;
+$$;
+
+-- ============================================================================
+-- ROW LEVEL SECURITY (RLS) — Criterio de ética y seguridad
+-- ----------------------------------------------------------------------------
+-- Principio: el menú es de lectura pública; los datos sensibles (PIN del staff,
+-- tokens, inventario) sólo se exponen/escriben desde el backend con service_role.
+-- El cliente anónimo puede crear pedidos pero NO modificar precios ni estados.
+-- En producción, el acceso del personal debe migrar a Supabase Auth (no PIN).
+-- ============================================================================
+ALTER TABLE stores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tables ENABLE ROW LEVEL SECURITY;
+ALTER TABLE table_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ingredients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE product_recipes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE push_tokens ENABLE ROW LEVEL SECURITY;
+
+-- Lectura pública del menú y mesas (NO de stores: el PIN no debe exponerse).
+CREATE POLICY "menu_public_read" ON categories FOR SELECT USING (true);
+CREATE POLICY "products_public_read" ON products FOR SELECT USING (true);
+CREATE POLICY "tables_public_read" ON tables FOR SELECT USING (true);
+
+-- El cliente puede leer/crear su sesión y pedidos; el backend (service_role)
+-- ignora RLS y gestiona estados, cobros e inventario.
+CREATE POLICY "sessions_anon_rw" ON table_sessions FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "orders_anon_insert" ON orders FOR INSERT WITH CHECK (true);
+CREATE POLICY "orders_anon_read" ON orders FOR SELECT USING (true);
+CREATE POLICY "order_items_anon_rw" ON order_items FOR ALL USING (true) WITH CHECK (true);
+
+-- stores, ingredients, product_recipes y push_tokens: SIN políticas para anon
+-- => sólo accesibles con service_role desde el backend (PIN/inventario protegidos).
+

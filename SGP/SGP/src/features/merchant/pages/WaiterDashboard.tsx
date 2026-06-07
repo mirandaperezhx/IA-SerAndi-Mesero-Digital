@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../../context/AppContext';
 import useRealtimeOrders from '../../../hooks/useRealtimeOrders';
 import sgpApi from '../../../lib/supabase';
-import { mockTables, getStoredSessions } from '../../../services/mockData';
 import type { Table, TableSession } from '../../../types';
-import { Bell, LogOut, CheckCircle2, User, RefreshCw, DollarSign, X } from 'lucide-react';
+import { Bell, LogOut, CheckCircle2, User, RefreshCw, DollarSign, X, CreditCard, Smartphone, Banknote } from 'lucide-react';
 import notificationService from '../../../services/notifications';
+import { formatCOP } from '../../../utils/formatPrice';
 
 export const WaiterDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -17,6 +17,9 @@ export const WaiterDashboard: React.FC = () => {
   
   const [activeSessions, setActiveSessions] = useState<TableSession[]>([]);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
+  const [tables, setTables] = useState<Table[]>([]);
+  const [checkoutSession, setCheckoutSession] = useState<TableSession | null>(null);
+  const [paying, setPaying] = useState(false);
 
   // Authentication Lock
   useEffect(() => {
@@ -25,18 +28,26 @@ export const WaiterDashboard: React.FC = () => {
     }
   }, [staffRole, navigate]);
 
-  // Load and subscribe to active sessions
+  // Sesiones de la tienda vía API (funciona en mock y en Supabase real)
   const fetchSessions = async () => {
-    // In mock mode we read stored sessions. In production we query database table_sessions
-    const sessions = getStoredSessions();
-    setActiveSessions(sessions);
+    if (!store) return;
+    const { data } = await sgpApi.getActiveStoreSessions(store.id);
+    setActiveSessions(data ?? []);
   };
 
   useEffect(() => {
-    fetchSessions();
-    const interval = setInterval(fetchSessions, 5000); // Poll session statuses for simulation
-    return () => clearInterval(interval);
+    const loadTables = async () => {
+      const { data } = await sgpApi.getTables();
+      setTables(data ?? []);
+    };
+    loadTables();
   }, []);
+
+  useEffect(() => {
+    fetchSessions();
+    const interval = setInterval(fetchSessions, 5000);
+    return () => clearInterval(interval);
+  }, [store]);
 
   // Listen to live broadcast order notifications
   useEffect(() => {
@@ -81,7 +92,7 @@ export const WaiterDashboard: React.FC = () => {
       return {
         status: 'empty',
         label: 'Vacía',
-        color: 'bg-neutral-900 border-neutral-800 text-slate-500'
+        color: 'bg-brand-950 border-brand-800/40 text-brand-600'
       };
     }
 
@@ -100,7 +111,7 @@ export const WaiterDashboard: React.FC = () => {
     return {
       status: 'active',
       label: 'Consumiendo',
-      color: 'bg-indigo-950/20 border-indigo-500/40 text-indigo-300 font-semibold'
+      color: 'bg-brand-800/20 border-brand-500/40 text-brand-300 font-semibold'
     };
   };
 
@@ -133,43 +144,50 @@ export const WaiterDashboard: React.FC = () => {
     }
   };
 
-  const handleCheckoutTable = async (sessionId: string) => {
-    if (!window.confirm('¿Confirmar cobro de la cuenta y cerrar la sesión de esta mesa? Se iniciará el temporizador de 15 minutos.')) return;
+  const confirmPayment = async (method: string) => {
+    console.log(`[Ventum] Procesando pago vía ${method}`);
+    if (!checkoutSession) return;
+    setPaying(true);
     try {
-      await sgpApi.payAndCloseSession(sessionId);
+      // Simulación de pasarela de pago (Nequi / Wompi / Tarjeta / Efectivo)
+      await new Promise((r) => setTimeout(r, 900));
+      await sgpApi.payAndCloseSession(checkoutSession.id);
       notificationService.playChime('success');
+      setCheckoutSession(null);
       fetchSessions();
       refreshOrders();
     } catch (e) {
       console.error(e);
+    } finally {
+      setPaying(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-brand-950 text-cream flex flex-col">
       {/* Header bar */}
-      <header className="bg-neutral-900 border-b border-neutral-800 px-6 py-4 flex justify-between items-center shrink-0">
+      <header className="bg-brand-900/90 border-b border-brand-700/40 px-6 py-4 flex justify-between items-center shrink-0 backdrop-blur-sm">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400">
+          <div className="w-10 h-10 rounded-xl bg-brand-500/15 border border-brand-500/30 flex items-center justify-center text-brand-400">
             <Bell className="w-5 h-5 animate-pulse" />
           </div>
           <div>
-            <h1 className="text-md font-bold tracking-tight text-white">SGP Panel de Operaciones</h1>
-            <p className="text-[10px] text-brand-400">Rol: Mesero/Administrador</p>
+            <h1 className="font-display text-base font-bold text-cream">Ventum · Mesero</h1>
+            <p className="text-[10px] text-brand-400">Panel de operaciones</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={() => { refreshOrders(); fetchSessions(); }}
-            className="p-2 bg-neutral-850 hover:bg-neutral-800 border border-neutral-750 text-slate-400 hover:text-white rounded-xl transition-all"
+            className="p-2 bg-brand-900/60 hover:bg-brand-800/60 border border-brand-700/40 text-brand-300 hover:text-cream rounded-xl transition-all"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
-          
+
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 text-xs bg-rose-950/20 hover:bg-rose-900/30 border border-rose-900/30 text-rose-400 px-3.5 py-1.5 rounded-xl transition-all font-semibold active:scale-95"
+            className="flex items-center gap-1.5 text-xs bg-rose-950/30 hover:bg-rose-900/40 border border-rose-800/40 text-rose-400 px-3.5 py-1.5 rounded-xl transition-all font-semibold active:scale-95"
           >
             <LogOut className="w-3.5 h-3.5" />
             Salir
@@ -180,19 +198,19 @@ export const WaiterDashboard: React.FC = () => {
       {/* Main Split Layout */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Left Side: 15 Tables grid */}
-        <main className="flex-1 p-6 overflow-y-auto border-r border-neutral-900">
+        <main className="flex-1 p-6 overflow-y-auto border-r border-brand-700/30">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">Mapa de Mesas</h2>
-            <div className="flex gap-4 text-[10px] text-slate-400 font-semibold">
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-neutral-800 border border-neutral-750 inline-block"></span> Vacía</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block"></span> Activa</span>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-brand-300">Mapa de Mesas</h2>
+            <div className="flex gap-4 text-[10px] text-brand-400 font-semibold">
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-brand-800 border border-brand-700 inline-block"></span> Vacía</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-brand-500 inline-block"></span> Activa</span>
               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Entrega</span>
               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> Pagada</span>
             </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {mockTables.map(table => {
+            {tables.map(table => {
               const state = getTableState(table.id);
               const isSelected = selectedTable?.id === table.id;
 
@@ -207,7 +225,7 @@ export const WaiterDashboard: React.FC = () => {
                   <div>
                     <div className="flex justify-between items-start">
                       <span className="text-sm font-black">{table.name}</span>
-                      <span className="text-[9px] text-slate-500">QR: {table.passcode}</span>
+                      <span className="text-[9px] text-brand-600">QR: {table.passcode}</span>
                     </div>
                     <span className="text-[10px] opacity-80 mt-1 block">
                       {state.label}
@@ -227,19 +245,19 @@ export const WaiterDashboard: React.FC = () => {
         </main>
 
         {/* Right Side: Selected table detailed controller */}
-        <aside className="w-full md:w-80 lg:w-96 bg-neutral-900 p-6 overflow-y-auto flex flex-col shrink-0">
+        <aside className="w-full md:w-80 lg:w-96 bg-brand-900/60 border-l border-brand-700/30 p-6 overflow-y-auto flex flex-col shrink-0">
           {selectedTable ? (
             <div className="flex flex-col h-full justify-between animate-fade-in">
               <div>
                 {/* Header info */}
-                <div className="flex justify-between items-start border-b border-neutral-800 pb-4 mb-4">
+                <div className="flex justify-between items-start border-b border-brand-700/40 pb-4 mb-4">
                   <div>
-                    <h3 className="text-md font-black text-white">{selectedTable.name}</h3>
-                    <p className="text-[10px] text-slate-400">Código de mesa: {selectedTable.passcode}</p>
+                    <h3 className="font-display text-base font-bold text-cream">{selectedTable.name}</h3>
+                    <p className="text-[10px] text-brand-400">Código de mesa: {selectedTable.passcode}</p>
                   </div>
                   <button
                     onClick={() => setSelectedTable(null)}
-                    className="p-1 rounded-full bg-neutral-800 hover:bg-neutral-700 text-slate-400 hover:text-white"
+                    className="p-1 rounded-full bg-brand-800/60 hover:bg-brand-700/60 text-brand-300 hover:text-cream"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -250,33 +268,33 @@ export const WaiterDashboard: React.FC = () => {
                     {/* Session status banner */}
                     <div className={`p-3 rounded-xl text-center text-xs font-semibold mb-4 border ${
                       currentSession.status === 'paid'
-                        ? 'bg-amber-500/10 border-amber-500/20 text-amber-500'
-                        : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
+                        ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                        : 'bg-brand-500/10 border-brand-500/20 text-brand-300'
                     }`}>
                       Sesión: {currentSession.status === 'paid' ? 'CUENTA COBRADA / PAGADA' : 'CLIENTES CONSUMIENDO'}
                     </div>
 
                     {/* Orders listing */}
                     <div className="space-y-4">
-                      <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Historial de Pedidos</h4>
-                      
+                      <h4 className="text-[10px] font-bold uppercase tracking-wider text-brand-500">Historial de Pedidos</h4>
+
                       {selectedTableOrders.length > 0 ? (
                         selectedTableOrders.map(order => (
                           <div
                             key={order.id}
-                            className="bg-neutral-850 border border-neutral-800 p-4 rounded-xl flex flex-col justify-between"
+                            className="bg-brand-950/70 border border-brand-700/30 p-4 rounded-xl flex flex-col justify-between"
                           >
-                            <div className="flex justify-between items-center text-[10px] border-b border-neutral-800 pb-2 mb-2">
-                              <span className="font-semibold text-slate-400">#{order.id.slice(-6).toUpperCase()}</span>
-                              <span className="font-bold text-slate-500">{order.status.toUpperCase()}</span>
+                            <div className="flex justify-between items-center text-[10px] border-b border-brand-700/20 pb-2 mb-2">
+                              <span className="font-semibold text-brand-300">#{order.id.slice(-6).toUpperCase()}</span>
+                              <span className="font-bold text-brand-400">{order.status.toUpperCase()}</span>
                             </div>
 
                             {/* Food items */}
-                            <div className="space-y-1.5 text-xs text-slate-300">
+                            <div className="space-y-1.5 text-xs text-cream/80">
                               {order.items?.map((item, index) => (
                                 <div key={index} className="flex justify-between">
                                   <span>{item.quantity}x {item.product_name}</span>
-                                  <span className="text-slate-400">${(item.unit_price * item.quantity).toFixed(2)}</span>
+                                  <span className="text-brand-300">{formatCOP(item.unit_price * item.quantity)}</span>
                                 </div>
                               ))}
                             </div>
@@ -285,21 +303,21 @@ export const WaiterDashboard: React.FC = () => {
                             {order.status === 'ready' && (
                               <button
                                 onClick={() => handleDeliverAll(order.id)}
-                                className="mt-3 w-full py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-lg text-[10px] flex items-center justify-center gap-1 transition-all"
+                                className="mt-3 w-full py-2 bg-emerald-500 hover:bg-emerald-400 text-brand-950 font-bold rounded-lg text-[10px] flex items-center justify-center gap-1 transition-all"
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
-                                Entregar a la Mesa
+                                Pasar a recoger y entregar
                               </button>
                             )}
                           </div>
                         ))
                       ) : (
-                        <p className="text-xs text-slate-500 italic">No hay pedidos agregados en esta sesión.</p>
+                        <p className="text-xs text-brand-500 italic">No hay pedidos agregados en esta sesión.</p>
                       )}
                     </div>
                   </>
                 ) : (
-                  <div className="py-12 text-center text-slate-500 text-xs italic">
+                  <div className="py-12 text-center text-brand-600 text-xs italic">
                     Esta mesa no tiene clientes en sesión activa.
                   </div>
                 )}
@@ -307,27 +325,27 @@ export const WaiterDashboard: React.FC = () => {
 
               {/* Session billing operations */}
               {currentSession && (
-                <div className="border-t border-neutral-800 pt-6 mt-6 bg-neutral-900">
+                <div className="border-t border-brand-700/40 pt-6 mt-6">
                   <div className="flex justify-between items-center mb-5">
-                    <span className="text-xs font-semibold text-slate-400">Subtotal de la cuenta</span>
-                    <span className="text-lg font-black text-white">${totalAmountSelected.toFixed(2)}</span>
+                    <span className="text-xs font-semibold text-brand-300">Subtotal de la cuenta</span>
+                    <span className="text-lg font-black text-cream">{formatCOP(totalAmountSelected)}</span>
                   </div>
 
                   {currentSession.status === 'active' ? (
                     <button
-                      onClick={() => handleCheckoutTable(currentSession.id)}
+                      onClick={() => setCheckoutSession(currentSession)}
                       disabled={selectedTableOrders.length === 0}
                       className={`w-full py-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all active:scale-97 ${
                         selectedTableOrders.length > 0
-                          ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-amber-500/10'
-                          : 'bg-neutral-800 text-neutral-600 border border-neutral-750 cursor-not-allowed'
+                          ? 'bg-amber-500 hover:bg-amber-400 text-brand-950 shadow-amber-500/10'
+                          : 'bg-brand-900 text-brand-700 border border-brand-800 cursor-not-allowed'
                       }`}
                     >
                       <DollarSign className="w-4 h-4" />
                       Cobrar y Limpiar Mesa (Iniciar 15m)
                     </button>
                   ) : (
-                    <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 p-3 rounded-xl text-center text-[10px] font-bold">
+                    <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-3 rounded-xl text-center text-[10px] font-bold">
                       💳 Cuenta cobrada. El temporizador de 15 minutos está corriendo en el cliente.
                     </div>
                   )}
@@ -335,13 +353,49 @@ export const WaiterDashboard: React.FC = () => {
               )}
             </div>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 py-12">
-              <User className="w-8 h-8 text-neutral-700 mb-2" />
+            <div className="h-full flex flex-col items-center justify-center text-center text-brand-600 py-12">
+              <User className="w-8 h-8 text-brand-700 mb-2" />
               <p className="text-xs">Selecciona una mesa en el mapa para gestionar pedidos, entregas o cobro de cuentas.</p>
             </div>
           )}
         </aside>
       </div>
+
+      {/* Modal de pasarela de pago (simulada) */}
+      {checkoutSession && (
+        <div
+          className="fixed inset-0 bg-brand-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => !paying && setCheckoutSession(null)}
+        >
+          <div className="bg-cream w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-pop-in" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="font-display text-lg font-bold text-brand-800">Cobrar cuenta</h3>
+              <button onClick={() => setCheckoutSession(null)} disabled={paying} className="text-brand-400 hover:text-brand-700 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-brand-500 mb-4">Elige el método de pago. Al cobrar se inicia el temporizador de 15 minutos.</p>
+            <div className="bg-brand-700 text-cream rounded-2xl p-4 mb-4 text-center">
+              <p className="text-[11px] text-brand-200">Total a cobrar</p>
+              <p className="text-2xl font-black">{formatCOP(totalAmountSelected)}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[{ k: 'Nequi', Icon: Smartphone }, { k: 'Wompi', Icon: CreditCard }, { k: 'Tarjeta', Icon: CreditCard }, { k: 'Efectivo', Icon: Banknote }].map(({ k, Icon }) => (
+                <button
+                  key={k}
+                  onClick={() => confirmPayment(k)}
+                  disabled={paying}
+                  className="flex flex-col items-center gap-1.5 bg-white border border-brand-200 hover:border-brand-500 rounded-2xl py-4 text-brand-700 font-semibold text-xs transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                >
+                  <Icon className="w-5 h-5" /> {k}
+                </button>
+              ))}
+            </div>
+            {paying && <p className="text-center text-xs text-brand-600 mt-4 animate-pulse">Procesando pago seguro...</p>}
+            <p className="text-[10px] text-brand-400 text-center mt-4">Pasarela simulada · integrable con Wompi / Mercado Pago (ver docs).</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
