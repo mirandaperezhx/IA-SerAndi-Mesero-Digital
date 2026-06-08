@@ -1,0 +1,7 @@
+# Configuración de build para Railway (Nixpacks)
+# Railway instala dependencias, compila el frontend y arranca el servidor Express.
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm start"

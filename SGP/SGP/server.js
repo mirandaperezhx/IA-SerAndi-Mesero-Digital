@@ -1,32 +1,37 @@
 // ============================================================================
-// Supabase Edge Function — Proxy seguro para Sheila (IA generativa con Claude)
+// Ventum — Servidor de producción (Railway)
 // ----------------------------------------------------------------------------
-// OPCIONAL: la app funciona 100% con el motor local. Si despliegas esta función
-// y configuras VITE_AI_PROXY_URL apuntando a su URL, Sheila usará Claude para
-// respuestas más naturales, manteniendo la API key SOLO en el servidor.
-//
-// Despliegue:
-//   supabase functions deploy sheila --no-verify-jwt
-//   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+// 1. Sirve el frontend compilado (carpeta dist/).
+// 2. Expone POST /api/sheila como proxy SEGURO hacia Google Gemini.
+//    La GEMINI_API_KEY vive SOLO aquí (variable de entorno del servidor),
+//    nunca se expone al navegador. Cumple el criterio de ética/seguridad.
 //
 // El front envía: { message, menu, orders }
 // Responde:       { text, suggestionIds? }
+//
+// Si no hay GEMINI_API_KEY, /api/sheila responde 503 y el front cae
+// automáticamente a su motor local determinista (dietEngine).
 // ============================================================================
-// deno-lint-ignore-file no-explicit-any
-import Anthropic from 'npm:@anthropic-ai/sdk';
+import express from 'express';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const app = express();
+app.use(express.json({ limit: '1mb' }));
 
-Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+const PORT = process.env.PORT || 3000;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+
+// ---- Endpoint de IA (proxy a Gemini) --------------------------------------
+app.post('/api/sheila', async (req, res) => {
+  if (!GEMINI_API_KEY) {
+    return res.status(503).json({ error: 'GEMINI_API_KEY no configurada' });
+  }
 
   try {
-    const { message, menu, orders } = await req.json();
-    const client = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY')! });
+    const { message, menu, orders } = req.body ?? {};
 
     const ahora = new Date().toLocaleString('es-CO', {
       timeZone: 'America/Bogota',
@@ -71,33 +76,58 @@ Deno.serve(async (req: Request) => {
       'Al confirmar una orden, muéstrala en lista limpia y añade al final, entre corchetes, la nota interna para cocina si aplica (con el asterisco de alergia).',
       'Cuando sugieras platos del menú, incluye al final una línea EXACTA: SUGERENCIAS: id1,id2 (usando los ids del menú).',
       '',
-      `MENÚ: ${JSON.stringify(menu)}`,
-      `PEDIDOS DEL CLIENTE: ${JSON.stringify(orders)}`,
+      `MENÚ: ${JSON.stringify(menu ?? [])}`,
+      `PEDIDOS DEL CLIENTE: ${JSON.stringify(orders ?? [])}`,
     ].join('\n');
 
-    const resp = await client.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 500,
-      system,
-      messages: [{ role: 'user', content: String(message ?? '') }],
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+    const gemRes = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: system }] },
+        contents: [{ role: 'user', parts: [{ text: String(message ?? '') }] }],
+        generationConfig: { temperature: 0.6, maxOutputTokens: 500 },
+      }),
     });
 
-    const raw = resp.content.map((b: any) => (b.type === 'text' ? b.text : '')).join('').trim();
+    if (!gemRes.ok) {
+      const detail = await gemRes.text();
+      console.error('[Sheila] Gemini error:', gemRes.status, detail);
+      return res.status(502).json({ error: 'Gemini no disponible' });
+    }
+
+    const data = await gemRes.json();
+    const raw = (data?.candidates?.[0]?.content?.parts ?? [])
+      .map((p) => p.text ?? '')
+      .join('')
+      .trim();
+
     let text = raw;
-    let suggestionIds: string[] | undefined;
+    let suggestionIds;
     const m = raw.match(/SUGERENCIAS:\s*([a-z0-9,\-\s]+)/i);
     if (m) {
-      suggestionIds = m[1].split(',').map((s: string) => s.trim()).filter(Boolean);
+      suggestionIds = m[1].split(',').map((s) => s.trim()).filter(Boolean);
       text = raw.replace(m[0], '').trim();
     }
 
-    return new Response(JSON.stringify({ text, suggestionIds }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return res.json({ text, suggestionIds });
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.error('[Sheila] error:', err);
+    return res.status(500).json({ error: String(err) });
   }
+});
+
+// ---- Servir el frontend compilado -----------------------------------------
+const distDir = path.join(__dirname, 'dist');
+app.use(express.static(distDir));
+
+// SPA fallback: cualquier ruta no-API devuelve index.html
+app.get(/^(?!\/api\/).*/, (_req, res) => {
+  res.sendFile(path.join(distDir, 'index.html'));
+});
+
+app.listen(PORT, () => {
+  console.log(`Ventum escuchando en puerto ${PORT}`);
+  console.log(`Sheila IA (Gemini): ${GEMINI_API_KEY ? 'ACTIVA · ' + GEMINI_MODEL : 'inactiva (motor local)'}`);
 });
