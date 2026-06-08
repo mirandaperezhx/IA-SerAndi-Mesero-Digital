@@ -22,7 +22,12 @@ export interface SheilaContext {
   sessionOrders?: Order[];
 }
 
-const PROXY_URL = import.meta.env.VITE_AI_PROXY_URL as string | undefined;
+// En producción (build desplegado) usamos el proxy del propio servidor en
+// /api/sheila por defecto; se puede sobreescribir con VITE_AI_PROXY_URL.
+// En desarrollo no hay servidor de IA, así que se usa el motor local.
+const PROXY_URL =
+  (import.meta.env.VITE_AI_PROXY_URL as string | undefined) ??
+  (import.meta.env.PROD ? '/api/sheila' : undefined);
 
 export const SHEILA_GREETING =
   '¡Hola! Soy Sheila, tu mesera digital de Ventum 🍷 ¿En qué puedo ayudarte hoy? Cuéntame qué se te antoja o si tienes alguna restricción alimenticia.';

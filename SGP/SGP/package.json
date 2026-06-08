@@ -7,11 +7,13 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node server.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",
     "canvas-confetti": "^1.9.4",
+    "express": "^5.2.1",
     "jspdf": "^4.2.1",
     "lucide-react": "^1.17.0",
     "qrcode": "^1.5.4",
